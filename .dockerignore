@@ -52,3 +52,13 @@ node_modules/
 *.log
 .env
 .env.local
+# Exclude large UI build artifacts that are not needed in the Docker build context.
+# The build_admin_ui.sh script generates the final output at
+# litellm/proxy/_experimental/out/, which IS included; everything else under
+# ui/litellm-dashboard can be safely excluded.
+ui/litellm-dashboard/.next/
+ui/litellm-dashboard/node_modules/
+ui/litellm-dashboard/src/
+ui/litellm-dashboard/public/
+ui/litellm-dashboard/tests/
+ui/litellm-dashboard/out/

@@ -21,7 +21,7 @@ import {
   Title,
   Button as TremorButton,
 } from "@tremor/react";
-import { Button, Form, Input, Select } from "antd";
+import { Button, Form, Input, Modal, Select } from "antd";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import UserSearchModal from "../common_components/user_search_modal";
@@ -70,6 +70,7 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
   const [selectedEditMember, setSelectedEditMember] = useState<Member | null>(null);
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
   const [isOrgSaving, setIsOrgSaving] = useState(false);
+  const [isMemberMutating, setIsMemberMutating] = useState(false);
   const canEditOrg = is_org_admin || is_proxy_admin;
 
   const fetchOrgInfo = async () => {
@@ -91,31 +92,55 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
   }, [organizationId, accessToken]);
 
   const handleMemberAdd = async (values: any) => {
+    const previousOrgData = orgData;
     try {
       if (accessToken == null) {
         return;
       }
+      setIsMemberMutating(true);
 
       const member: Member = {
         user_email: values.user_email,
         user_id: values.user_id,
         role: values.role,
       };
-      const response = await organizationMemberAddCall(accessToken, organizationId, member);
+      if (previousOrgData) {
+        setOrgData({
+          ...previousOrgData,
+          members: [
+            ...(previousOrgData.members || []),
+            {
+              user_id: member.user_id,
+              user_email: member.user_email,
+              user_role: member.role,
+              spend: 0,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      await organizationMemberAddCall(accessToken, organizationId, member);
 
       NotificationsManager.success("Organization member added successfully");
       setIsAddMemberModalVisible(false);
       form.resetFields();
       fetchOrgInfo();
     } catch (error) {
+      if (previousOrgData) {
+        setOrgData(previousOrgData);
+      }
       NotificationsManager.fromBackend("Failed to add organization member");
       console.error("Error adding organization member:", error);
+    } finally {
+      setIsMemberMutating(false);
     }
   };
 
   const handleMemberUpdate = async (values: any) => {
+    const previousOrgData = orgData;
     try {
       if (!accessToken) return;
+      setIsMemberMutating(true);
 
       const member: Member = {
         user_email: values.user_email,
@@ -123,30 +148,67 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
         role: values.role,
       };
 
-      const response = await organizationMemberUpdateCall(accessToken, organizationId, member);
+      if (previousOrgData) {
+        setOrgData({
+          ...previousOrgData,
+          members: (previousOrgData.members || []).map((m: any) =>
+            m.user_id === member.user_id ? { ...m, user_role: member.role } : m,
+          ),
+        });
+      }
+
+      await organizationMemberUpdateCall(accessToken, organizationId, member);
       NotificationsManager.success("Organization member updated successfully");
       setIsEditMemberModalVisible(false);
       form.resetFields();
       fetchOrgInfo();
     } catch (error) {
+      if (previousOrgData) {
+        setOrgData(previousOrgData);
+      }
       NotificationsManager.fromBackend("Failed to update organization member");
       console.error("Error updating organization member:", error);
+    } finally {
+      setIsMemberMutating(false);
     }
   };
 
   const handleMemberDelete = async (values: any) => {
-    try {
-      if (!accessToken) return;
+    if (!accessToken) return;
+    const previousOrgData = orgData;
 
-      await organizationMemberDeleteCall(accessToken, organizationId, values.user_id);
-      NotificationsManager.success("Organization member deleted successfully");
-      setIsEditMemberModalVisible(false);
-      form.resetFields();
-      fetchOrgInfo();
-    } catch (error) {
-      NotificationsManager.fromBackend("Failed to delete organization member");
-      console.error("Error deleting organization member:", error);
-    }
+    Modal.confirm({
+      title: "Remove member from organization?",
+      content: `This will remove ${values.user_id || values.user_email} from the organization.`,
+      okText: "Remove",
+      okButtonProps: { danger: true },
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          setIsMemberMutating(true);
+          if (previousOrgData) {
+            setOrgData({
+              ...previousOrgData,
+              members: (previousOrgData.members || []).filter((m: any) => m.user_id !== values.user_id),
+            });
+          }
+
+          await organizationMemberDeleteCall(accessToken, organizationId, values.user_id);
+          NotificationsManager.success("Organization member deleted successfully");
+          setIsEditMemberModalVisible(false);
+          form.resetFields();
+          fetchOrgInfo();
+        } catch (error) {
+          if (previousOrgData) {
+            setOrgData(previousOrgData);
+          }
+          NotificationsManager.fromBackend("Failed to delete organization member");
+          console.error("Error deleting organization member:", error);
+        } finally {
+          setIsMemberMutating(false);
+        }
+      },
+    });
   };
 
   const handleOrgUpdate = async (values: any) => {
@@ -202,7 +264,7 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <div className="p-4">Loading organization details...</div>;
   }
 
   if (!orgData) {
@@ -386,11 +448,12 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
               </Card>
               {canEditOrg && (
                 <TremorButton
+                  loading={isMemberMutating}
                   onClick={() => {
                     setIsAddMemberModalVisible(true);
                   }}
                 >
-                  Add Member
+                  {isMemberMutating ? "Updating..." : "Add Member"}
                 </TremorButton>
               )}
             </div>
@@ -433,6 +496,10 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
                       {
                         required: true,
                         message: "Please input an organization name",
+                      },
+                      {
+                        min: 3,
+                        message: "Organization name must be at least 3 characters",
                       },
                     ]}
                   >
@@ -490,7 +557,23 @@ const OrganizationInfoView: React.FC<OrganizationInfoProps> = ({
                     />
                   </Form.Item>
 
-                  <Form.Item label="Metadata" name="metadata">
+                  <Form.Item
+                    label="Metadata"
+                    name="metadata"
+                    rules={[
+                      {
+                        validator: (_, value) => {
+                          if (!value) return Promise.resolve();
+                          try {
+                            JSON.parse(value);
+                            return Promise.resolve();
+                          } catch {
+                            return Promise.reject(new Error("Metadata must be valid JSON"));
+                          }
+                        },
+                      },
+                    ]}
+                  >
                     <Input.TextArea rows={4} />
                   </Form.Item>
 

@@ -49,9 +49,10 @@ USER root
 RUN apk add --no-cache bash openssl tzdata nodejs npm python3 py3-pip
 
 WORKDIR /app
-# Copy the current directory contents into the container at /app
-COPY . .
-RUN ls -la /app
+# Copy only the files actually needed at runtime (not the full source tree)
+COPY docker/ docker/
+COPY schema.prisma .
+COPY litellm/proxy/_experimental/out/ litellm/proxy/_experimental/out/
 
 # Copy the built wheel from the builder stage to the runtime stage; assumes only one wheel file is present
 COPY --from=builder /app/dist/*.whl .

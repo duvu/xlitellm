@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   TableHead,
@@ -18,10 +18,11 @@ import {
   Tab,
   TabPanels,
   TabPanel,
+  Title,
 } from "@tremor/react";
 import NumericalInput from "./shared/numerical_input";
 import { Input } from "antd";
-import { Modal, Form, Tooltip, Select as Select2 } from "antd";
+import { Alert, Empty, Modal, Form, Tooltip, Select as Select2 } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { RefreshIcon, ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/outline";
 import { TextInput } from "@tremor/react";
@@ -73,15 +74,64 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [orgToDelete, setOrgToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [isOrgModalVisible, setIsOrgModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [expandedAccordions, setExpandedAccordions] = useState<Record<string, boolean>>({});
+  const [isFetchingOrgs, setIsFetchingOrgs] = useState(false);
+  const [orgFetchError, setOrgFetchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "spend_desc" | "name_asc">("newest");
+  const [modelFilter, setModelFilter] = useState<"all" | "all_proxy" | "restricted">("all");
+  const canManageOrganizations = userRole === "Admin" || userRole === "Org Admin";
+
+  const refreshOrganizations = async () => {
+    if (!accessToken) return;
+    try {
+      setIsFetchingOrgs(true);
+      setOrgFetchError(null);
+      await fetchOrganizations(accessToken, setOrganizations);
+    } catch (error) {
+      setOrgFetchError("Failed to load organizations. Please retry.");
+      NotificationsManager.fromBackend("Failed to load organizations");
+    } finally {
+      setIsFetchingOrgs(false);
+    }
+  };
 
   useEffect(() => {
     if (accessToken) {
-      fetchOrganizations(accessToken, setOrganizations);
+      refreshOrganizations();
     }
   }, [accessToken]);
+
+  const filteredOrganizations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let data = [...(organizations || [])];
+
+    if (q.length > 0) {
+      data = data.filter((org) => {
+        const alias = (org.organization_alias || "").toLowerCase();
+        const id = (org.organization_id || "").toLowerCase();
+        return alias.includes(q) || id.includes(q);
+      });
+    }
+
+    if (modelFilter === "all_proxy") {
+      data = data.filter((org) => (org.models || []).length === 0);
+    } else if (modelFilter === "restricted") {
+      data = data.filter((org) => (org.models || []).length > 0);
+    }
+
+    data.sort((a, b) => {
+      if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (sortBy === "spend_desc") return (b.spend || 0) - (a.spend || 0);
+      return (a.organization_alias || "").localeCompare(b.organization_alias || "");
+    });
+
+    return data;
+  }, [organizations, searchQuery, modelFilter, sortBy]);
 
   const handleDelete = (orgId: string | null) => {
     if (!orgId) return;
@@ -103,6 +153,7 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
       // Refresh organizations list
       await fetchOrganizations(accessToken, setOrganizations);
     } catch (error) {
+      NotificationsManager.fromBackend("Failed to delete organization");
       console.error("Error deleting organization:", error);
     } finally {
       setIsDeleting(false);
@@ -117,6 +168,7 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
   const handleCreate = async (values: any) => {
     try {
       if (!accessToken) return;
+      setIsCreatingOrg(true);
 
       console.log(`values in organizations new create call: ${JSON.stringify(values)}`);
 
@@ -148,9 +200,12 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
       setIsOrgModalVisible(false);
       form.resetFields();
       // Refresh organizations list
-      fetchOrganizations(accessToken, setOrganizations);
+      await refreshOrganizations();
     } catch (error) {
+      NotificationsManager.fromBackend("Failed to create organization");
       console.error("Error creating organization:", error);
+    } finally {
+      setIsCreatingOrg(false);
     }
   };
 
@@ -174,14 +229,37 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
   }
 
   return (
-    <div className="w-full mx-4 h-[75vh]">
-      <Grid numItems={1} className="gap-2 p-8 w-full mt-2">
+    <div className="w-full mx-2 md:mx-4 h-[75vh]">
+      <Grid numItems={1} className="gap-3 p-3 md:p-6 w-full mt-2">
         <Col numColSpan={1} className="flex flex-col gap-2">
-          {(userRole === "Admin" || userRole === "Org Admin") && (
-            <Button className="w-fit" onClick={() => setIsOrgModalVisible(true)}>
-              + Create New Organization
-            </Button>
-          )}
+          <Card className="w-full">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <Title>Organizations</Title>
+                <Text>Manage organization access, budgets, and member roles from one place.</Text>
+              </div>
+              {canManageOrganizations && (
+                <Button className="w-fit" onClick={() => setIsOrgModalVisible(true)}>
+                  + Create New Organization
+                </Button>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Card>
+                <Text>Total Organizations</Text>
+                <Title>{organizations?.length || 0}</Title>
+              </Card>
+              <Card>
+                <Text>All Proxy Models</Text>
+                <Title>{(organizations || []).filter((o) => (o.models || []).length === 0).length}</Title>
+              </Card>
+              <Card>
+                <Text>Total Spend</Text>
+                <Title>${formatNumberWithCommas((organizations || []).reduce((acc, cur) => acc + (cur.spend || 0), 0), 2)}</Title>
+              </Card>
+            </div>
+          </Card>
+
           {selectedOrgId ? (
             <OrganizationInfoView
               organizationId={selectedOrgId}
@@ -208,16 +286,76 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
                     variant="shadow"
                     size="xs"
                     className="self-center"
-                    onClick={handleRefreshClick}
+                    onClick={handleRefreshClick || refreshOrganizations}
                   />
                 </div>
               </TabList>
               <TabPanels>
                 <TabPanel>
                   <Text>Click on &ldquo;Organization ID&rdquo; to view organization details.</Text>
+
+                  <Card className="mt-3">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-end">
+                      <div>
+                        <Text className="mb-1">Search</Text>
+                        <Input
+                          placeholder="Search by organization name or ID"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          allowClear
+                        />
+                      </div>
+                      <div>
+                        <Text className="mb-1">Sort</Text>
+                        <Select2 value={sortBy} onChange={(v) => setSortBy(v)} style={{ width: "100%" }}>
+                          <Select2.Option value="newest">Newest first</Select2.Option>
+                          <Select2.Option value="oldest">Oldest first</Select2.Option>
+                          <Select2.Option value="spend_desc">Highest spend</Select2.Option>
+                          <Select2.Option value="name_asc">Name (A-Z)</Select2.Option>
+                        </Select2>
+                      </div>
+                      <div>
+                        <Text className="mb-1">Model Access</Text>
+                        <Select2 value={modelFilter} onChange={(v) => setModelFilter(v)} style={{ width: "100%" }}>
+                          <Select2.Option value="all">All</Select2.Option>
+                          <Select2.Option value="all_proxy">All Proxy Models</Select2.Option>
+                          <Select2.Option value="restricted">Restricted Models</Select2.Option>
+                        </Select2>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {orgFetchError && (
+                    <Alert
+                      className="mt-3"
+                      type="error"
+                      showIcon
+                      message="Could not load organizations"
+                      description={orgFetchError}
+                      action={
+                        <Button size="xs" variant="secondary" onClick={refreshOrganizations}>
+                          Retry
+                        </Button>
+                      }
+                    />
+                  )}
+
                   <Grid numItems={1} className="gap-2 pt-2 pb-2 h-[75vh] w-full mt-2">
                     <Col numColSpan={1}>
                       <Card className="w-full mx-auto flex-auto overflow-y-auto max-h-[50vh]">
+                        {isFetchingOrgs && <Text>Loading organizations...</Text>}
+                        {!isFetchingOrgs && filteredOrganizations.length === 0 && (
+                          <Empty
+                            description="No organizations match your filters"
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          >
+                            {canManageOrganizations && (
+                              <Button size="xs" onClick={() => setIsOrgModalVisible(true)}>
+                                Create Organization
+                              </Button>
+                            )}
+                          </Empty>
+                        )}
                         <Table>
                           <TableHead>
                             <TableRow>
@@ -234,10 +372,8 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
                           </TableHead>
 
                           <TableBody>
-                            {organizations && organizations.length > 0
-                              ? organizations
-                                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                                  .map((org: Organization) => (
+                            {filteredOrganizations.length > 0
+                              ? filteredOrganizations.map((org: Organization) => (
                                     <TableRow key={org.organization_id}>
                                       <TableCell>
                                         <div className="overflow-hidden">
@@ -267,7 +403,7 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
                                       </TableCell>
                                       <TableCell
                                         style={{
-                                          maxWidth: "8-x",
+                                          maxWidth: "8rem",
                                           whiteSpace: "pre-wrap",
                                           overflow: "hidden",
                                         }}
@@ -416,6 +552,10 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
                 required: true,
                 message: "Please input an organization name",
               },
+              {
+                min: 3,
+                message: "Organization name must be at least 3 characters",
+              },
             ]}
           >
             <TextInput placeholder="" />
@@ -494,12 +634,30 @@ const OrganizationsTable: React.FC<OrganizationsTableProps> = ({
             />
           </Form.Item>
 
-          <Form.Item label="Metadata" name="metadata">
+          <Form.Item
+            label="Metadata"
+            name="metadata"
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve();
+                  try {
+                    JSON.parse(value);
+                    return Promise.resolve();
+                  } catch {
+                    return Promise.reject(new Error("Metadata must be valid JSON"));
+                  }
+                },
+              },
+            ]}
+          >
             <Input.TextArea rows={4} />
           </Form.Item>
 
           <div style={{ textAlign: "right", marginTop: "10px" }}>
-            <Button type="submit">Create Organization</Button>
+            <Button type="submit" loading={isCreatingOrg}>
+              Create Organization
+            </Button>
           </div>
         </Form>
       </Modal>
