@@ -102,7 +102,7 @@ jobs:
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@4f5b5234679dfa19837d4942067c97d7df43b7b3
+        uses: docker/metadata-action@1b2e78b2f16968c43ad83fa0537a1bd30d0c1447
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       # Configure multi platform Docker builds
@@ -147,7 +147,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for EE Dockerfile
         id: meta-ee
-        uses: docker/metadata-action@4f5b5234679dfa19837d4942067c97d7df43b7b3
+        uses: docker/metadata-action@1b2e78b2f16968c43ad83fa0537a1bd30d0c1447
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-ee
       # Configure multi platform Docker builds
@@ -190,7 +190,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for database Dockerfile
         id: meta-database
-        uses: docker/metadata-action@4f5b5234679dfa19837d4942067c97d7df43b7b3
+        uses: docker/metadata-action@1b2e78b2f16968c43ad83fa0537a1bd30d0c1447
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-database
       # Configure multi platform Docker builds
@@ -233,7 +233,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for non_root Dockerfile
         id: meta-non_root
-        uses: docker/metadata-action@4f5b5234679dfa19837d4942067c97d7df43b7b3
+        uses: docker/metadata-action@1b2e78b2f16968c43ad83fa0537a1bd30d0c1447
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-non_root
       # Configure multi platform Docker builds
@@ -276,7 +276,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for spend-logs Dockerfile
         id: meta-spend-logs
-        uses: docker/metadata-action@4f5b5234679dfa19837d4942067c97d7df43b7b3
+        uses: docker/metadata-action@1b2e78b2f16968c43ad83fa0537a1bd30d0c1447
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-spend_logs
       # Configure multi platform Docker builds
