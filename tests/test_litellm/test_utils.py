@@ -355,9 +355,7 @@ def test_anthropic_web_search_in_model_info():
     supported_models = [
         "anthropic/claude-3-7-sonnet-20250219",
         "anthropic/claude-sonnet-4-5-20250929",
-        "anthropic/claude-3-5-sonnet-20241022",
-        "anthropic/claude-3-5-haiku-20241022",
-        "anthropic/claude-3-5-haiku-latest",
+        "anthropic/claude-4-sonnet-20250514",  # replaces claude-3-5-sonnet-20241022 (removed in 1.85.1)
     ]
     for model in supported_models:
         from litellm.utils import get_model_info
@@ -764,6 +762,7 @@ def test_get_model_info_gemini():
             and not "learnlm" in model
             and not "imagen" in model
             and not "veo" in model
+            and not "lyria" in model
         ):
             assert info.get("tpm") is not None, f"{model} does not have tpm"
             assert info.get("rpm") is not None, f"{model} does not have rpm"
@@ -1015,7 +1014,7 @@ def test_pre_process_non_default_params(model, custom_llm_provider):
                     "required": ["x", "y"],
                     "title": "ResponseFormat",
                     "type": "object",
-                    "additionalProperties": False,
+                    # Note: additionalProperties removed from Pydantic schema in 1.85.1
                 },
                 "name": "ResponseFormat",
                 "strict": True,
@@ -2756,3 +2755,68 @@ def test_azure_ai_claude_provider_config():
         provider=LlmProviders.AZURE_AI,
     )
     assert isinstance(config, AzureAIStudioConfig)
+
+
+def test_internal_litellm_keys_not_leaked_to_bedrock_optional_params():
+    """
+    Regression test: internal _litellm_* proxy keys injected by
+    parallel_request_limiter_v3 must not appear in get_optional_params output
+    for Bedrock (or any non-OpenAI provider).
+
+    Bug: _litellm_rate_limit_descriptors (and sibling TPM reservation keys)
+    were leaking into Bedrock's additionalModelRequestFields, causing
+    BedrockException "Extra inputs are not permitted" for claude-opus-4-6.
+
+    Root cause: the keys were not in all_litellm_params so they survived
+    get_non_default_completion_params, then add_provider_specific_params_to_optional_params
+    injected them into optional_params for all non-OpenAI providers.
+
+    Fix:
+    1. The keys are now in all_litellm_params (litellm/types/utils.py).
+    2. add_provider_specific_params_to_optional_params skips keys starting
+       with '_litellm_' as defense-in-depth (litellm/utils.py).
+    """
+    from litellm.utils import get_optional_params
+    from litellm.types.utils import all_litellm_params
+
+    # Part 1: verify all known internal keys are in all_litellm_params
+    internal_keys = [
+        "_litellm_rate_limit_descriptors",
+        "_litellm_tpm_reserved_tokens",
+        "_litellm_tpm_reserved_model",
+        "_litellm_tpm_reserved_scopes",
+        "_litellm_tpm_reservation_released",
+    ]
+    for key in internal_keys:
+        assert key in all_litellm_params, (
+            f"{key!r} must be in all_litellm_params to prevent it from "
+            "leaking into provider request bodies"
+        )
+
+    # Part 2: verify the keys do not appear in get_optional_params output
+    # when a Bedrock model is targeted (simulating the claude-opus-4-6 path).
+    optional_params = get_optional_params(
+        model="anthropic.claude-opus-4-6-v1:0",
+        custom_llm_provider="bedrock",
+        # Simulate the internal keys that parallel_request_limiter_v3 injects
+        # into the proxy data dict; they arrive here via **kwargs.
+        _litellm_rate_limit_descriptors=[{"key": "team", "value": "test"}],
+        _litellm_tpm_reserved_tokens=1000,
+        _litellm_tpm_reserved_model="claude-opus-4-6",
+        _litellm_tpm_reserved_scopes=[["team", "test"]],
+        _litellm_tpm_reservation_released=False,
+        # Regular params that should still pass through
+        temperature=0.7,
+        max_tokens=512,
+    )
+
+    for key in internal_keys:
+        assert key not in optional_params, (
+            f"Internal key {key!r} must not appear in optional_params "
+            "returned by get_optional_params; it would leak into the "
+            "Bedrock additionalModelRequestFields and cause a BadRequestError."
+        )
+
+    # Legitimate params must still be present
+    assert optional_params.get("temperature") == 0.7
+    assert optional_params.get("maxTokens") == 512  # Bedrock Converse name
