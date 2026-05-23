@@ -4881,6 +4881,12 @@ def add_provider_specific_params_to_optional_params(
     else:
         for k in passed_params.keys():
             if k not in openai_params and passed_params[k] is not None:
+                # Never forward internal LiteLLM proxy keys to provider APIs.
+                # Keys prefixed with "_litellm_" are internal bookkeeping values
+                # (e.g. rate-limit descriptors, TPM reservation tokens) that
+                # must not appear in the provider request body.
+                if k.startswith("_litellm_"):
+                    continue
                 if _should_drop_param(
                     k=k, additional_drop_params=additional_drop_params
                 ):
