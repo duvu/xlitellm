@@ -1,0 +1,25 @@
+# Dockerfile.x51 - Custom LiteLLM build with litellm-payment integration
+# Uses the 1.88.1 base image and overlays clean UI + litellm-payment from source
+#
+# Usage: IMAGE_TAG=docker.x51.vn/dev/litellm:tag ./build-docker.sh
+
+ARG BASE_IMAGE=docker.x51.vn/dev/litellm:1.88.1-base
+
+FROM ${BASE_IMAGE}
+
+USER root
+
+# Remove stale UI assets (fix split-brain)
+# Docker Hub litellm:v1.88.1 uses /app/.venv/lib/python3.13/site-packages/
+RUN rm -rf /app/.venv/lib/python3.13/site-packages/litellm/proxy/_experimental/out
+
+COPY x51-ui-out/ /app/.venv/lib/python3.13/site-packages/litellm/proxy/_experimental/out/
+
+# Copy litellm-payment source and install from source
+# New base uses venv without pip pre-installed; bootstrap pip first
+COPY litellm-payment-src/ /opt/litellm-payment/
+RUN python3 -m ensurepip --upgrade && \
+    python3 -m pip install --no-cache-dir --force-reinstall /opt/litellm-payment/ \
+    && rm -rf /opt/litellm-payment/
+
+EXPOSE 4000/tcp
