@@ -446,8 +446,26 @@ def _get_redis_client_logic(**env_overrides):  # noqa: PLR0915
         "sentinel_nodes" in redis_kwargs and redis_kwargs["sentinel_nodes"] is not None
     ):
         pass
-    elif "host" not in redis_kwargs or redis_kwargs["host"] is None:
-        raise ValueError("Either 'host' or 'url' must be specified for redis.")
+    else:
+        # Fall back to the standard Redis defaults when no explicit URL or
+        # cluster/sentinel configuration is provided. This keeps the cache
+        # helpers usable in local/test environments without requiring a
+        # pre-populated REDIS_HOST / REDIS_PORT pair.
+        redis_host = redis_kwargs.get("host") or get_secret_str("REDIS_HOST")
+        if not redis_host:
+            redis_host = "localhost"
+        redis_kwargs["host"] = redis_host
+
+        redis_port = redis_kwargs.get("port")
+        if redis_port in (None, ""):
+            redis_port = get_secret("REDIS_PORT")
+
+        try:
+            redis_port = int(redis_port) if redis_port is not None else 6379
+        except (TypeError, ValueError):
+            redis_port = 6379
+
+        redis_kwargs["port"] = redis_port
 
     # litellm.print_verbose(f"redis_kwargs: {redis_kwargs}")
     return redis_kwargs

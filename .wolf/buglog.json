@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-05-23T12:45:33.869Z",
+      "error_message": "CSS fix: render",
+      "file": "ui/litellm-dashboard/src/app/(dashboard)/payment/components/PaymentHistoryTable.tsx",
+      "root_cause": "render: (_, record) => ( → (_: any, record: PaymentTxn) => (",
+      "fix": "Changed render: (_, record) => ( → (_: any, record: PaymentTxn) => (",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T12:45:33.869Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-05-23T12:48:15.060Z",
+      "error_message": "CSS fix: key",
+      "file": "ui/litellm-dashboard/src/app/(dashboard)/components/Sidebar2.tsx",
+      "root_cause": "key: \"15\", page: \"logs\", label: \"Logs\", icon: <LineChartOutlined style={{ fontSize: 18 → \"27\", page: \"payment\", label: \"Payment\", icon: <WalletOutlined style={{ fontSize: 18",
+      "fix": "Changed key: \"15\", page: \"logs\", label: \"Logs\", icon: <LineChartOutlined style={{ fontSize: 18 → \"27\", page: \"payment\", label: \"Payment\", icon: <WalletOutlined style={{ fontSize: 18",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "tsx"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T12:48:15.060Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-05-23T15:03:12.530Z",
+      "error_message": "Significant refactor of ",
+      "file": "../litellm-payment/src/litellm_payment/api/router.py",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 18→11 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T15:03:12.530Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-05-23T15:44:53.152Z",
+      "error_message": "Significant refactor of ",
+      "file": "../litellm-payment/src/litellm_payment/api/router.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 11→28 lines (2 removed) | Also: \"\"\"Extract user from LiteLLM's standard bearer tok; Resolution priority:",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-23T15:45:08.814Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-05-23T15:46:41.266Z",
+      "error_message": "Incorrect value in code",
+      "file": "openspec/changes/fix-payment-user-identity/tasks.md",
+      "root_cause": "Had `docker.x51.vn/dev/litellm:1.85.1-x51.enterprise.p",
+      "fix": "Changed to `docker.x51.vn/dev/litellm:1.85.1-x51.enterprise.p",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T15:46:41.266Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-05-23T15:57:19.668Z",
+      "error_message": "Significant refactor of ",
+      "file": "../litellm-payment/src/litellm_payment/proxy_integration.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 12→7 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T15:57:19.668Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-05-23T17:10:47.964Z",
+      "error_message": "Missing await",
+      "file": "../litellm-payment/src/litellm_payment/db.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T17:10:47.964Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-05-24T01:38:58.636Z",
+      "error_message": "Missing await",
+      "file": "../litellm-payment/src/litellm_payment/api/router.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-24T01:38:58.636Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-05-24T01:40:12.103Z",
+      "error_message": "Significant refactor of ",
+      "file": "../litellm-payment/src/litellm_payment/api/router.py",
+      "root_cause": "85 lines replaced/restructured",
+      "fix": "Rewrote 103→7 lines (85 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-24T01:40:12.103Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-05-24T02:52:08.166Z",
+      "error_message": "Significant refactor of ",
+      "file": "../litellm-payment/tests/test_integration.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 16→28 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-24T02:52:08.166Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-05-24T03:09:52.627Z",
+      "error_message": "Wrong reference: true should be false",
+      "file": "../../deployment/server2/docker-compose.yml",
+      "root_cause": "Used \"true\" instead of \"false\"",
+      "fix": "Changed true → false",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "yml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-24T03:09:52.627Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-05-24T03:59:00.088Z",
+      "error_message": "Wrong reference: v14 should be v15",
+      "file": "../../deployment/server2/docker-compose.yml",
+      "root_cause": "Used \"v14\" instead of \"v15\"",
+      "fix": "Changed v14 → v15",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "yml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-24T03:59:00.088Z"
+    }
+  ]
+}
